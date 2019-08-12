@@ -1,0 +1,48 @@
+service: video-api 
+
+plugins:
+  - '@hewmen/serverless-plugin-typescript'  
+  - serverless-plugin-optimize
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  profile: nadtakan
+  region: us-west-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      # Restrict our IAM role permissions to
+      # the specific table for the stage
+      Resource:
+        - "Fn::GetAtt": [ VideosTable, Arn ]
+package:
+  individually: true
+
+functions:
+ main: # The name of the lambda function
+   # The module 'handler' is exported in the file 'src/lambda'
+   handler: src/lambda.handler
+   events:
+    - http:
+        method: get
+        path: /items
+    - http:
+        method: post
+        path: /items
+
+custom:
+  tableName: videos
+
+resources:
+  # AWS Resources
+  Resources: ${file(./resources/general.yml)}
+  # Outputs: ${file(./resources/general-outputs.yml)}
