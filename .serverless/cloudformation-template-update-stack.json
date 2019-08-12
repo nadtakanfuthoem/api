@@ -112,7 +112,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/video-api/dev/1565585334696-2019-08-12T04:48:54.696Z/main.zip"
+          "S3Key": "serverless/video-api/dev/1565590122482-2019-08-12T06:08:42.482Z/main.zip"
         },
         "FunctionName": "video-api-dev-main",
         "Handler": "_optimize/video-api-dev-main/src/lambda.handler",
@@ -253,7 +253,7 @@
         "MethodResponses": []
       }
     },
-    "ApiGatewayDeployment1565585334715": {
+    "ApiGatewayDeployment1565590122500": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
@@ -316,14 +316,14 @@
     "VideosTable": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
-        "TableName": "videos",
+        "TableName": "dev-video",
         "AttributeDefinitions": [
           {
             "AttributeName": "userId",
             "AttributeType": "S"
           },
           {
-            "AttributeName": "noteId",
+            "AttributeName": "videoId",
             "AttributeType": "S"
           }
         ],
@@ -333,11 +333,199 @@
             "KeyType": "HASH"
           },
           {
-            "AttributeName": "noteId",
+            "AttributeName": "videoId",
             "KeyType": "RANGE"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 1,
+          "WriteCapacityUnits": 1
+        }
+      }
+    },
+    "AttachmentsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "CorsConfiguration": {
+          "CorsRules": [
+            {
+              "AllowedOrigins": [
+                "*"
+              ],
+              "AllowedHeaders": [
+                "*"
+              ],
+              "AllowedMethods": [
+                "GET",
+                "PUT",
+                "POST",
+                "DELETE",
+                "HEAD"
+              ],
+              "MaxAge": 3000
+            }
+          ]
+        }
+      }
+    },
+    "CognitoUserPool": {
+      "Type": "AWS::Cognito::UserPool",
+      "Properties": {
+        "UserPoolName": "video-api-dev-user-pool",
+        "UsernameAttributes": [
+          "email"
+        ],
+        "AutoVerifiedAttributes": [
+          "email"
+        ]
+      }
+    },
+    "CognitoUserPoolClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "ClientName": "dev-user-pool-client",
+        "UserPoolId": {
+          "Ref": "CognitoUserPool"
+        },
+        "ExplicitAuthFlows": [
+          "ADMIN_NO_SRP_AUTH"
+        ],
+        "GenerateSecret": false
+      }
+    },
+    "CognitoIdentityPool": {
+      "Type": "AWS::Cognito::IdentityPool",
+      "Properties": {
+        "IdentityPoolName": "devIdentityPool",
+        "AllowUnauthenticatedIdentities": false,
+        "CognitoIdentityProviders": [
+          {
+            "ClientId": {
+              "Ref": "CognitoUserPoolClient"
+            },
+            "ProviderName": {
+              "Fn::GetAtt": [
+                "CognitoUserPool",
+                "ProviderName"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CognitoIdentityPoolRoles": {
+      "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+      "Properties": {
+        "IdentityPoolId": {
+          "Ref": "CognitoIdentityPool"
+        },
+        "Roles": {
+          "authenticated": {
+            "Fn::GetAtt": [
+              "CognitoAuthRole",
+              "Arn"
+            ]
+          }
+        }
+      }
+    },
+    "CognitoAuthRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "cognito-identity.amazonaws.com"
+              },
+              "Action": [
+                "sts:AssumeRoleWithWebIdentity"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
+                    "Ref": "CognitoIdentityPool"
+                  }
+                },
+                "ForAnyValue:StringLike": {
+                  "cognito-identity.amazonaws.com:amr": "authenticated"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CognitoAuthorizedPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "mobileanalytics:PutEvents",
+                    "cognito-sync:*",
+                    "cognito-identity:*"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "execute-api:Invoke"
+                  ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:execute-api:",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        ":",
+                        {
+                          "Ref": "AWS::AccountId"
+                        },
+                        ":",
+                        {
+                          "Ref": "ApiGatewayRestApi"
+                        },
+                        "/*"
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:*"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "AttachmentsBucket",
+                              "Arn"
+                            ]
+                          },
+                          "/private/",
+                          "$",
+                          "{cognito-identity.amazonaws.com:sub}/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -370,6 +558,26 @@
             "/dev"
           ]
         ]
+      }
+    },
+    "AttachmentsBucketName": {
+      "Value": {
+        "Ref": "AttachmentsBucket"
+      }
+    },
+    "UserPoolId": {
+      "Value": {
+        "Ref": "CognitoUserPool"
+      }
+    },
+    "UserPoolClientId": {
+      "Value": {
+        "Ref": "CognitoUserPoolClient"
+      }
+    },
+    "IdentityPoolId": {
+      "Value": {
+        "Ref": "CognitoIdentityPool"
       }
     }
   }

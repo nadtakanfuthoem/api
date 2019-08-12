@@ -1,7 +1,0 @@
-UserPoolId:
-  Value:
-    Ref: CognitoUserPool
-
-UserPoolClientId:
-  Value:
-    Ref: CognitoUserPoolClient
