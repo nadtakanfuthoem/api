@@ -35,6 +35,7 @@ $ npm run test:cov
 ```
 
 ## Deploy
-``` sls deploy -v
+``` 
+sls deploy -v
 ```
 
