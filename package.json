@@ -26,7 +26,7 @@
     "aws-lambda": "^0.1.2",
     "aws-serverless-express": "^3.3.6",
     "class-transformer": "^0.2.3",
-    "class-validator": "^0.10.0",
+    "class-validator": "^0.14.0",
     "plugin": "^0.3.3",
     "reflect-metadata": "^0.1.12",
     "rimraf": "^2.6.2",
